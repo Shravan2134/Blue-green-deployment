@@ -1,0 +1,45 @@
+- name: Detect Active Server
+  hosts: localhost
+  tasks:
+    - name: Get Active Environment
+      command: python scripts/get_active_server.py
+      register: active_server
+
+    - name: Set Inactive Environment
+      set_fact:
+        inactive_env: "{{ 'blue' if active_server.stdout == 'green' else 'green' }}"
+        new_backend: "{{ 'google_compute_backend_service.green_backend.self_link' if inactive_env == 'green' else 'google_compute_backend_service.blue_backend.self_link' }}"
+        previous_active_backend: "{{ 'google_compute_backend_service.blue_backend.self_link' if inactive_env == 'green' else 'google_compute_backend_service.green_backend.self_link' }}"
+
+- name: Deploy Code to Inactive Server
+  hosts: "{{ inactive_env }}"
+  tasks:
+    - name: Pull latest code
+      git:
+        repo: 'https://github.com/yourrepo.git'
+        dest: '/var/www/app'
+
+    - name: Restart application service
+      service:
+        name: app
+        state: restarted
+
+- name: Validate Deployment
+  hosts: "{{ inactive_env }}"
+  tasks:
+    - name: Run Validation Checks
+      include_tasks: validate.yaml
+
+- name: Switch Traffic to Updated Server (if healthy)
+  hosts: localhost
+  tasks:
+    - name: Update Load Balancer Backend
+      include_tasks: switch_traffic.yaml
+      when: health_result.status == 200
+
+- name: Rollback to Previous Active Server (if validation fails)
+  hosts: localhost
+  tasks:
+    - name: Switch Back to Previous Active Environment
+      include_tasks: rollback.yaml
+      when: health_result.status != 200

@@ -1,0 +1,5 @@
+- name: Switch Traffic to Updated Server
+  hosts: localhost
+  tasks:
+    - name: Update Load Balancer Backend
+      command: gcloud compute url-maps update blue-green-lb --default-service={{ new_backend }}

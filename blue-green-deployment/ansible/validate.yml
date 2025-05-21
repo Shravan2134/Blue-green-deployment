@@ -1,0 +1,13 @@
+- name: Validate Green/Blue Environment Before Traffic Switch
+  hosts: "{{ inactive_env }}"
+  tasks:
+    - name: Health Check
+      uri:
+        url: "http://{{ ansible_host }}/health"
+        method: GET
+      register: health_result
+
+    - name: Verify Health Status
+      fail:
+        msg: "Inactive environment failed health check!"
+      when: health_result.status != 200

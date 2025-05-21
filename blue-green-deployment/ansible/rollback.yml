@@ -1,0 +1,5 @@
+- name: Rollback to Previous Environment
+  hosts: localhost
+  tasks:
+    - name: Switch Load Balancer Back to Previous Server
+      command: gcloud compute url-maps update blue-green-lb --default-service={{ previous_active_backend }}
